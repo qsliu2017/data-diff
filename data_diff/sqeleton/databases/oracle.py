@@ -107,6 +107,7 @@ class Dialect(BaseDialect, Mixin_Schema, Mixin_OptimizerHints):
         if offset:
             raise NotImplementedError("No support for OFFSET in query")
 
+        return f""
         return f"FETCH NEXT {limit} ROWS ONLY"
 
     def concat(self, items: List[str]) -> str:

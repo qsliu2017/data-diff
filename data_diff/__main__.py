@@ -62,10 +62,12 @@ def diff_schemas(table1, table2, schema1, schema2, columns):
 
         if c not in schema1:
             cols = ", ".join(schema1)
-            raise ValueError(f"Column '{c}' not found in table 1, named '{table1}'. Columns: {cols}")
+            raise ValueError(
+                f"Column '{c}' not found in table 1, named '{table1}'. Columns: {cols}")
         if c not in schema2:
             cols = ", ".join(schema1)
-            raise ValueError(f"Column '{c}' not found in table 2, named '{table2}'. Columns: {cols}")
+            raise ValueError(
+                f"Column '{c}' not found in table 2, named '{table2}'. Columns: {cols}")
 
         col1 = schema1[c]
         col2 = schema2[c]
@@ -74,7 +76,8 @@ def diff_schemas(table1, table2, schema1, schema2, columns):
             if v1 != v2:
                 diffs.append(f"{attr}:({v1} != {v2})")
         if diffs:
-            logging.warning(f"Schema mismatch in column '{c}': {', '.join(diffs)}")
+            logging.warning(
+                f"Schema mismatch in column '{c}': {', '.join(diffs)}")
 
 
 class MyHelpFormatter(click.HelpFormatter):
@@ -83,21 +86,35 @@ class MyHelpFormatter(click.HelpFormatter):
         self.indent_increment = 6
 
     def write_usage(self, prog: str, args: str = "", prefix: Optional[str] = None) -> None:
-        self.write(f"data-diff v{__version__} - efficiently diff rows across database tables.\n\n")
+        self.write(
+            f"data-diff v{__version__} - efficiently diff rows across database tables.\n\n")
         self.write("Usage:\n")
-        self.write(f"  * In-db diff:    {prog} <database_a> <table_a> <table_b> [OPTIONS]\n")
-        self.write(f"  * Cross-db diff: {prog} <database_a> <table_a> <database_b> <table_b> [OPTIONS]\n")
-        self.write(f"  * Using config:  {prog} --conf PATH [--run NAME] [OPTIONS]\n")
+        self.write(
+            f"  * In-db diff:    {prog} <database_a> <table_a> <table_b> [OPTIONS]\n")
+        self.write(
+            f"  * Cross-db diff: {prog} <database_a> <table_a> <database_b> <table_b> [OPTIONS]\n")
+        self.write(
+            f"  * Using config:  {prog} --conf PATH [--run NAME] [OPTIONS]\n")
 
 
 click.Context.formatter_class = MyHelpFormatter
 
 
 @click.command(no_args_is_help=True)
-@click.argument("database1", required=False)
-@click.argument("table1", required=False)
-@click.argument("database2", required=False)
-@click.argument("table2", required=False)
+@click.option("--driver1", default=None)
+@click.option("--host1", default=None)
+@click.option("--port1", default=None)
+@click.option("--user1", default=None)
+@click.option("--password1", default=None)
+@click.option("--database1", default=None)
+@click.option("--table1", default=None)
+@click.option("--driver2", default=None)
+@click.option("--host2", default=None)
+@click.option("--port2", default=None)
+@click.option("--user2", default=None)
+@click.option("--password2", default=None)
+@click.option("--database2", default=None)
+@click.option("--table2", default=None)
 @click.option(
     "-k", "--key-columns", default=[], multiple=True, help="Names of primary key columns. Default='id'.", metavar="NAME"
 )
@@ -274,10 +291,8 @@ def main(conf, run, **kw):
 
 
 def _data_diff(
-    database1,
-    table1,
-    database2,
-    table2,
+    driver1, host1, port1, user1, password1, database1, table1,
+    driver2, host2, port2, user2, password2, database2, table2,
     key_columns,
     update_column,
     columns,
@@ -311,12 +326,15 @@ def _data_diff(
     __conf__=None,
 ):
     if limit and stats:
-        logging.error("Cannot specify a limit when using the -s/--stats switch")
+        logging.error(
+            "Cannot specify a limit when using the -s/--stats switch")
         return
 
     key_columns = key_columns or ("id",)
-    bisection_factor = DEFAULT_BISECTION_FACTOR if bisection_factor is None else int(bisection_factor)
-    bisection_threshold = DEFAULT_BISECTION_THRESHOLD if bisection_threshold is None else int(bisection_threshold)
+    bisection_factor = DEFAULT_BISECTION_FACTOR if bisection_factor is None else int(
+        bisection_factor)
+    bisection_threshold = DEFAULT_BISECTION_THRESHOLD if bisection_threshold is None else int(
+        bisection_threshold)
 
     threaded = True
     if threads is None:
@@ -337,17 +355,37 @@ def _data_diff(
 
     start = time.monotonic()
 
-    if database1 is None or database2 is None:
+    _database1 = {
+        "driver": driver1,
+        "host": host1,
+        "port": port1,
+        "user": user1,
+        "password": password1,
+        "database": database1,
+    }
+    _database1 = {k: v for k, v in _database1.items() if v is not None}
+
+    _database2 = {
+        "driver": driver2,
+        "host": host2,
+        "port": port2,
+        "user": user2,
+        "password": password2,
+        "database": database2,
+    }
+    _database2 = {k: v for k, v in _database2.items() if v is not None}
+
+    if _database1 is None or _database2 is None:
         logging.error(
-            f"Error: Databases not specified. Got {database1} and {database2}. Use --help for more information."
+            f"Error: Databases not specified. Got {_database1} and {_database2}. Use --help for more information."
         )
         return
 
-    db1 = connect(database1, threads1 or threads)
-    if database1 == database2:
+    db1 = connect(_database1, threads1 or threads)
+    if _database1 == _database2:
         db2 = db1
     else:
-        db2 = connect(database2, threads2 or threads)
+        db2 = connect(_database2, threads2 or threads)
 
     options = dict(
         case_sensitive=case_sensitive,
@@ -397,7 +435,8 @@ def _data_diff(
         )
 
     table_names = table1, table2
-    table_paths = [db.parse_table_name(t) for db, t in safezip(dbs, table_names)]
+    table_paths = [db.parse_table_name(t)
+                   for db, t in safezip(dbs, table_names)]
 
     schemas = list(differ._thread_map(_get_schema, safezip(dbs, table_paths)))
     schema1, schema2 = schemas = [
@@ -405,7 +444,8 @@ def _data_diff(
         for db, table_path, schema in safezip(dbs, table_paths, schemas)
     ]
 
-    mutual = schema1.keys() & schema2.keys()  # Case-aware, according to case_sensitive
+    # Case-aware, according to case_sensitive
+    mutual = schema1.keys() & schema2.keys()
     logging.debug(f"Available mutual columns: {mutual}")
 
     expanded_columns = set()
@@ -413,8 +453,10 @@ def _data_diff(
         cc = c if case_sensitive else c.lower()
         match = set(match_like(cc, mutual))
         if not match:
-            m1 = None if any(match_like(cc, schema1.keys())) else f"{db1}/{table1}"
-            m2 = None if any(match_like(cc, schema2.keys())) else f"{db2}/{table2}"
+            m1 = None if any(match_like(cc, schema1.keys())
+                             ) else f"{db1}/{table1}"
+            m2 = None if any(match_like(cc, schema2.keys())
+                             ) else f"{db2}/{table2}"
             not_matched = ", ".join(m for m in [m1, m2] if m)
             raise ValueError(f"Column '{c}' not found in: {not_matched}")
 
@@ -435,11 +477,13 @@ def _data_diff(
             ),
         )
 
-    logging.info(f"Diffing using columns: key={key_columns} update={update_column} extra={columns}.")
+    logging.info(
+        f"Diffing using columns: key={key_columns} update={update_column} extra={columns}.")
     logging.info(f"Using algorithm '{algorithm.name.lower()}'.")
 
     segments = [
-        TableSegment(db, table_path, key_columns, update_column, columns, **options)._with_raw_schema(raw_schema)
+        TableSegment(db, table_path, key_columns, update_column,
+                     columns, **options)._with_raw_schema(raw_schema)
         for db, table_path, raw_schema in safezip(dbs, table_paths, schemas)
     ]
 
